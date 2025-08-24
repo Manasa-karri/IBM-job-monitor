@@ -6,23 +6,23 @@ export const JobSchema = z.object({
   backend: z.string(),
   state: z.object({
     status: z.string(),
-  }),
+  }).optional(), // sometimes IBM only gives `status`
   program: z.object({
-    id: z.string(),
+    id: z.string().optional(),
     name: z.string().optional(),
-  }),
-  user_id: z.string(),
-  created: z.string(),
+  }).optional(),
+  user_id: z.string().optional(),
+  created: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  cost: z.number(),
+  cost: z.number().optional(),
   bss: z.object({
-    seconds: z.number(),
+    seconds: z.number().optional(),
   }).optional(),
   usage: z.object({
-    quantum_seconds: z.number(),
-    seconds: z.number(),
-  }),
-  status: z.string(),
+    quantum_seconds: z.number().optional(),
+    seconds: z.number().optional(),
+  }).optional(),
+  status: z.string().optional(),
 });
 
 // Extended job details schema
@@ -32,15 +32,18 @@ export const JobDetailsSchema = JobSchema.extend({
   run_time_seconds: z.number().optional(),
   completed: z.string().optional(),
   metrics: z.object({
-    depth: z.number(),
-    width: z.number(),
-    success_rate: z.number(),
+    depth: z.number().optional(),
+    width: z.number().optional(),
+    success_rate: z.number().optional(),
   }).optional(),
   bloch: z.object({
-    type: z.enum(["vector", "statevector"]),
-    data: z.array(z.number()),
+    type: z.enum(["vector", "statevector"]).optional(),
+    data: z.array(z.number()).optional(),
   }).optional(),
   raw: z.record(z.string(), z.any()).optional(),
+  results: z.any().optional(),   // IBM job results payload
+  qobj: z.any().optional(),      // IBM input quantum object
+  info: z.any().optional(),      // extra metadata from IBM
 });
 
 // API response schemas
@@ -51,6 +54,7 @@ export const JobsResponseSchema = z.object({
   offset: z.number(),
 });
 
+// Types
 export type Job = z.infer<typeof JobSchema>;
 export type JobDetails = z.infer<typeof JobDetailsSchema>;
 export type JobsResponse = z.infer<typeof JobsResponseSchema>;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Copy, ExternalLink, Clock, Zap, Target } from "lucide-react";
+import { X, Copy, Zap, Target } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -10,10 +10,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobDetails } from "@/types/job";
-import { formatCurrency, formatDuration, timeAgo, formatDateTime, getStatusColor } from "@/lib/utils/format";
+import {
+  formatCurrency,
+  formatDuration,
+  timeAgo,
+  getStatusColor,
+} from "@/lib/utils/format";
 import { BlochSphere } from "@/components/quantum/BlochSphere";
 import { processBlochData } from "@/lib/utils/bloch";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +53,25 @@ export function JobDetailsDrawer({
   const renderOverview = () => {
     if (!jobDetails) return null;
 
+    const status = jobDetails.status ?? jobDetails.state?.status ?? "Unknown";
+    const backend = jobDetails.backend ?? "N/A";
+    const programLabel =
+      jobDetails.program?.name || jobDetails.program?.id || "N/A";
+    const cost =
+      typeof jobDetails.cost === "number" ? formatCurrency(jobDetails.cost) : "N/A";
+    const createdAgo = jobDetails.created ? timeAgo(jobDetails.created) : "N/A";
+    const completedAgo = jobDetails.completed ? timeAgo(jobDetails.completed) : null;
+
+    const quantumSeconds =
+      jobDetails.usage?.quantum_seconds !== undefined
+        ? formatDuration(jobDetails.usage.quantum_seconds)
+        : null;
+
+    const runTime =
+      jobDetails.run_time_seconds !== undefined
+        ? formatDuration(jobDetails.run_time_seconds)
+        : null;
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -63,27 +87,21 @@ export function JobDetailsDrawer({
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status</span>
-                <Badge variant={getStatusColor(jobDetails.status) as any}>
-                  {jobDetails.status}
-                </Badge>
+                <Badge variant={getStatusColor(status) as any}>{status}</Badge>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Backend</span>
                 <Badge variant="outline" className="font-mono">
-                  {jobDetails.backend}
+                  {backend}
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Program</span>
-                <span className="font-mono text-sm">
-                  {jobDetails.program.name || jobDetails.program.id}
-                </span>
+                <span className="font-mono text-sm">{programLabel}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Cost</span>
-                <span className="font-mono font-semibold">
-                  {formatCurrency(jobDetails.cost)}
-                </span>
+                <span className="font-mono font-semibold">{cost}</span>
               </div>
             </CardContent>
           </Card>
@@ -95,26 +113,25 @@ export function JobDetailsDrawer({
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Created</span>
-                <span className="text-sm">{timeAgo(jobDetails.created)}</span>
+                <span className="text-sm">{createdAgo}</span>
               </div>
-              {jobDetails.completed && (
+
+              {completedAgo && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Completed</span>
-                  <span className="text-sm">{timeAgo(jobDetails.completed)}</span>
+                  <span className="text-sm">{completedAgo}</span>
                 </div>
               )}
+
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Quantum Time</span>
-                <span className="font-mono text-sm">
-                  {formatDuration(jobDetails.usage.quantum_seconds)}
-                </span>
+                <span className="font-mono text-sm">{quantumSeconds ?? "N/A"}</span>
               </div>
-              {jobDetails.run_time_seconds && (
+
+              {runTime && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Runtime</span>
-                  <span className="font-mono text-sm">
-                    {formatDuration(jobDetails.run_time_seconds)}
-                  </span>
+                  <span className="font-mono text-sm">{runTime}</span>
                 </div>
               )}
             </CardContent>
@@ -133,19 +150,21 @@ export function JobDetailsDrawer({
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
-                    {jobDetails.metrics.depth}
+                    {jobDetails.metrics.depth ?? "—"}
                   </div>
                   <div className="text-sm text-muted-foreground">Circuit Depth</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
-                    {jobDetails.metrics.width}
+                    {jobDetails.metrics.width ?? "—"}
                   </div>
                   <div className="text-sm text-muted-foreground">Qubits</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-success">
-                    {(jobDetails.metrics.success_rate * 100).toFixed(1)}%
+                    {jobDetails.metrics.success_rate !== undefined
+                      ? `${(jobDetails.metrics.success_rate * 100).toFixed(1)}%`
+                      : "—"}
                   </div>
                   <div className="text-sm text-muted-foreground">Success Rate</div>
                 </div>
@@ -175,7 +194,15 @@ export function JobDetailsDrawer({
   };
 
   const renderBlochSphere = () => {
-    if (!jobDetails?.bloch) {
+    // Guard: need both type and data[] to be present and valid
+    const b = jobDetails?.bloch;
+    const validBloch =
+      b &&
+      typeof b.type === "string" &&
+      Array.isArray(b.data) &&
+      b.data.length >= 3;
+
+    if (!validBloch) {
       return (
         <div className="flex items-center justify-center h-64 text-muted-foreground">
           <div className="text-center">
@@ -188,7 +215,17 @@ export function JobDetailsDrawer({
     }
 
     try {
-      const blochVector = processBlochData(jobDetails.bloch);
+      // Ensure strong typing for processBlochData
+      const safeBloch: { type: "vector" | "statevector"; data: number[] } = {
+        type: (b!.type as "vector" | "statevector") ?? "vector",
+        data: b!.data as number[],
+      };
+
+      const blochVector = processBlochData(safeBloch);
+      const magnitude = Math.sqrt(
+        blochVector.x ** 2 + blochVector.y ** 2 + blochVector.z ** 2
+      ).toFixed(3);
+
       return (
         <div className="space-y-4">
           <div className="h-64 relative">
@@ -202,13 +239,11 @@ export function JobDetailsDrawer({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Data Type:</span>
-                  <Badge variant="outline">{jobDetails.bloch.type}</Badge>
+                  <Badge variant="outline">{safeBloch.type}</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span>Vector Magnitude:</span>
-                  <span className="font-mono">
-                    {Math.sqrt(blochVector.x ** 2 + blochVector.y ** 2 + blochVector.z ** 2).toFixed(3)}
-                  </span>
+                  <span className="font-mono">{magnitude}</span>
                 </div>
               </div>
             </CardContent>
@@ -221,7 +256,9 @@ export function JobDetailsDrawer({
           <div className="text-center">
             <X className="h-12 w-12 mx-auto mb-4" />
             <p>Error processing Bloch sphere data</p>
-            <p className="text-sm">{error instanceof Error ? error.message : 'Unknown error'}</p>
+            <p className="text-sm">
+              {error instanceof Error ? error.message : "Unknown error"}
+            </p>
           </div>
         </div>
       );
@@ -260,7 +297,7 @@ export function JobDetailsDrawer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent className="w-[90vw] sm:w-[540px] sm:max-w-none">
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between">
@@ -273,17 +310,15 @@ export function JobDetailsDrawer({
               )}
             </div>
             {jobId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => copyToClipboard(jobId)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(jobId)}>
                 <Copy className="h-4 w-4" />
               </Button>
             )}
           </SheetTitle>
           <SheetDescription>
-            {isLoading ? "Loading job details..." : "Detailed information about this quantum job"}
+            {isLoading
+              ? "Loading job details..."
+              : "Detailed information about this quantum job"}
           </SheetDescription>
         </SheetHeader>
 
