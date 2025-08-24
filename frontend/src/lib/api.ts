@@ -76,14 +76,14 @@ const mockJobDetails: Record<string, JobDetails> = {
   }
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/jobs";
 
 class ApiClient {
   private async fetchWithRetry(url: string, options?: RequestInit): Promise<Response> {
     // For development, use mock data
-    if (import.meta.env.DEV) {
-      return this.getMockResponse(url);
-    }
+    // if (import.meta.env.DEV) {
+    //   return this.getMockResponse(url);
+    // }
     
     const response = await fetch(`${API_BASE_URL}${url}`, {
       headers: {
