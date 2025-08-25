@@ -8,14 +8,11 @@ import {
   CartesianGrid,
   PieChart,
   Pie,
-  Cell,
-  BarChart,
-  Bar,
-  ResponsiveContainer
+  Cell
 } from "recharts";
 import { Job } from "@/types/job";
-import { formatCurrency } from "@/lib/utils/format";
 import { motion } from "framer-motion";
+import { ExternalLink } from "lucide-react";
 
 interface ChartsGridProps {
   jobs: Job[];
@@ -24,8 +21,8 @@ interface ChartsGridProps {
 export function ChartsGrid({ jobs }: ChartsGridProps) {
   // Jobs over time data
   const jobsOverTime = jobs.reduce((acc, job) => {
-    const date = new Date(job.created).toISOString().split('T')[0];
-    const existing = acc.find(item => item.date === date);
+    const date = new Date(job.created).toISOString().split("T")[0];
+    const existing = acc.find((item) => item.date === date);
     if (existing) {
       existing.count += 1;
     } else {
@@ -33,8 +30,8 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
     }
     return acc;
   }, [] as { date: string; count: number }[])
-  .sort((a, b) => a.date.localeCompare(b.date))
-  .slice(-7); // Last 7 days
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-7); // Last 7 days
 
   // Status distribution data
   const statusCounts = jobs.reduce((acc, job) => {
@@ -48,21 +45,6 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
     percentage: Math.round((count / jobs.length) * 100),
   }));
 
-  // Average cost per backend
-  const backendCosts = jobs.reduce((acc, job) => {
-    if (!acc[job.backend]) {
-      acc[job.backend] = { total: 0, count: 0 };
-    }
-    acc[job.backend].total += job.cost;
-    acc[job.backend].count += 1;
-    return acc;
-  }, {} as Record<string, { total: number; count: number }>);
-
-  const costData = Object.entries(backendCosts).map(([backend, data]) => ({
-    backend,
-    avgCost: data.total / data.count,
-  }));
-
   const statusColors = {
     Completed: "hsl(var(--chart-1))",
     Running: "hsl(var(--chart-2))",
@@ -73,11 +55,11 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
 
   const chartConfig = {
     count: { label: "Jobs", color: "hsl(var(--chart-1))" },
-    avgCost: { label: "Avg Cost", color: "hsl(var(--chart-2))" },
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Jobs Over Time */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -92,19 +74,24 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
             <ChartContainer config={chartConfig} className="h-[200px]">
               <LineChart data={jobsOverTime}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) =>
+                    new Date(value).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })
+                  }
                 />
                 <YAxis />
-                <ChartTooltip 
+                <ChartTooltip
                   content={<ChartTooltipContent />}
                   labelFormatter={(value) => new Date(value).toLocaleDateString()}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="hsl(var(--chart-1))" 
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="hsl(var(--chart-1))"
                   strokeWidth={2}
                   dot={{ r: 4 }}
                 />
@@ -114,6 +101,7 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
         </Card>
       </motion.div>
 
+      {/* Status Distribution */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -133,17 +121,23 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
                   cy="50%"
                   outerRadius={60}
                   dataKey="count"
-                  label={({ status, percentage }) => `${status} (${percentage}%)`}
+                  label={({ status, percentage }) =>
+                    `${status} (${percentage}%)`
+                  }
                   labelLine={false}
                 >
                   {statusData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={statusColors[entry.status as keyof typeof statusColors] || "hsl(var(--muted))"}
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={
+                        statusColors[
+                          entry.status as keyof typeof statusColors
+                        ] || "hsl(var(--muted))"
+                      }
                     />
                   ))}
                 </Pie>
-                <ChartTooltip 
+                <ChartTooltip
                   content={<ChartTooltipContent />}
                   formatter={(value, name) => [`${value} jobs`, name]}
                 />
@@ -153,43 +147,45 @@ export function ChartsGrid({ jobs }: ChartsGridProps) {
         </Card>
       </motion.div>
 
+
+      {/* IBM Composer Link */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
-        <Card>
+        <Card className="h-full">
           <CardHeader>
-            <CardTitle>Avg Cost per Backend</CardTitle>
-            <CardDescription>Average job cost by quantum backend</CardDescription>
+            <CardTitle>IBM Quantum Composer</CardTitle>
+            <CardDescription>
+              Design and run quantum circuits directly on IBM Quantum.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[200px]">
-              <BarChart data={costData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="backend" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis 
-                  tickFormatter={(value) => formatCurrency(value)}
-                />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
-                  formatter={(value) => [formatCurrency(Number(value)), "Avg Cost"]}
-                />
-                <Bar 
-                  dataKey="avgCost" 
-                  fill="hsl(var(--chart-2))"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ChartContainer>
+          <CardContent className="flex flex-col justify-between h-[200px]">
+            {/* Some placeholder content to match height */}
+            <ul className="text-sm space-y-2 text-muted-foreground">
+              <li>• Drag & drop circuit builder</li>
+              <li>• Real quantum hardware access</li>
+              <li>• Integrated error mitigation</li>
+            </ul>
+
+            {/* Composer Button */}
+            <a
+              href="https://quantum-computing.ibm.com/composer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input 
+                bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-medium 
+                shadow-md transition-all duration-300
+                hover:scale-105 hover:shadow-lg hover:from-pink-500 hover:to-indigo-500"
+            >
+              Open Composer
+              <ExternalLink className="w-4 h-4" />
+            </a>
           </CardContent>
         </Card>
       </motion.div>
+
     </div>
   );
 }
